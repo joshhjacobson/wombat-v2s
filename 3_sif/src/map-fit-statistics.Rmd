@@ -1,0 +1,113 @@
+---
+title: "Mapping statistics from fitted SIF-GPP linear models"
+params:
+  model_sif_assim: a
+output:
+  pdf_document
+---
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(colorspace)
+library(dplyr, warn.conflicts = FALSE)
+library(ggplot2, warn.conflicts = FALSE)
+library(rnaturalearth)
+
+source('partials/display.R')
+
+coastlines <- ne_coastline(scale = 110, returnclass = 'sf')
+models <- fst::read_fst(params$model_sif_assim)
+```
+
+```{r}
+ggplot() +
+  geom_raster(data = models, aes(x = model_longitude, y = model_latitude, fill = model_count)) +
+  geom_sf(data = coastlines, fill = NA, colour = '#888888', linewidth = 0.05) +
+  coord_sf(
+    crs = sf::st_crs(4326),
+    default_crs = sf::st_crs(4326)
+  ) +
+  scale_fill_continuous_sequential(
+    name = 'Count',
+    palette = 'BluYl'
+  ) +
+  labs(x = NULL, y = NULL) +
+  facet_wrap(~month, ncol = 3)
+```
+
+```{r}
+ggplot() +
+  geom_raster(data = models, aes(x = model_longitude, y = model_latitude, fill = intercept)) +
+  geom_sf(data = coastlines, fill = NA, colour = '#888888', linewidth = 0.05) +
+  coord_sf(
+    crs = sf::st_crs(4326),
+    default_crs = sf::st_crs(4326)
+  ) +
+  scale_fill_continuous_divergingx(
+    name = 'Intercept',
+    palette = 'RdYlBu',
+    mid = 0
+  ) +
+  labs(x = NULL, y = NULL) +
+  facet_wrap(~month, ncol = 3)
+```
+
+```{r}
+print(summary(models$slope))
+
+print('In the map below, slopes greater than the 95th percentile are shown in red.')
+q95 <- quantile(models$slope, probs = 0.95)
+ggplot() +
+  geom_raster(data = models, aes(x = model_longitude, y = model_latitude, fill = slope)) +
+  geom_sf(data = coastlines, fill = NA, colour = '#888888', linewidth = 0.05) +
+  coord_sf(
+    crs = sf::st_crs(4326),
+    default_crs = sf::st_crs(4326)
+  ) +
+  scale_fill_continuous_sequential(
+    name = 'Slope',
+    palette = 'BluYl',
+    limits = c(0, q95),
+    na.value = 'red'
+  ) +
+  labs(x = NULL, y = NULL) +
+  facet_wrap(~month, ncol = 3)
+```
+
+```{r}
+ggplot() +
+  geom_raster(data = models, aes(x = model_longitude, y = model_latitude, fill = model_error)) +
+  geom_sf(data = coastlines, fill = NA, colour = '#888888', linewidth = 0.05) +
+  coord_sf(
+    crs = sf::st_crs(4326),
+    default_crs = sf::st_crs(4326)
+  ) +
+  scale_fill_continuous_sequential(
+    name = 'Model Error',
+    palette = 'BluYl',
+  ) +
+  labs(x = NULL, y = NULL) +
+  facet_wrap(~month, ncol = 3)
+```
+
+```{r}
+ggplot() +
+  geom_raster(data = models, aes(x = model_longitude, y = model_latitude, fill = correlation)) +
+  geom_sf(data = coastlines, fill = NA, colour = '#888888', linewidth = 0.05) +
+  coord_sf(
+    crs = sf::st_crs(4326),
+    default_crs = sf::st_crs(4326)
+  ) +
+  scale_fill_continuous_sequential(
+    name = 'Correlation',
+    palette = 'BluYl',
+    # NOTE: recall that fits are only retained if correlation is greater than 0.5
+    limits = c(0.5, 1),
+    na.value = 'red'
+  ) +
+  labs(x = NULL, y = NULL) +
+  facet_wrap(~month, ncol = 3)
+```

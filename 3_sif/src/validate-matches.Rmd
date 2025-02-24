@@ -1,0 +1,205 @@
+---
+title: "Validating matching of SIF observations to control values"
+params:
+  oco2_observations_sif: a
+  control_sif: a
+  inventory: a
+output:
+  pdf_document
+---
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = TRUE)
+```
+
+```{r}
+library(colorspace)
+library(dplyr, warn.conflicts = FALSE)
+library(ggplot2, warn.conflicts = FALSE)
+library(lubridate, warn.conflicts = FALSE)
+library(parallel)
+library(patchwork)
+library(rnaturalearth)
+library(tidyr, warn.conflicts = FALSE)
+
+source('partials/utils.R')
+source('partials/display.R')
+
+coastlines <- ne_coastline(scale = 110, returnclass = 'sf')
+oco2_observations_sif <- fst::read_fst(params$oco2_observations_sif)
+control_sif <- fst::read_fst(params$control_sif)
+inventory_list <- strsplit(params$inventory, ' +')[[1]]
+
+stopifnot(all(
+  levels(oco2_observations_sif$observation_id) == levels(control_sif$observation_id)
+))
+
+control <- oco2_observations_sif %>%
+  rename(value_oco2 = value) %>%
+  inner_join(
+    control_sif %>% rename(value_control = value),
+    by = 'observation_id'
+  ) %>%
+  mutate(month = month(time))
+
+inventory <- bind_rows(mclapply(inventory_list, function(path) {
+  fn <- ncdf4::nc_open(path)
+  on.exit(ncdf4::nc_close(fn))
+  v <- function(...) ncdf4::ncvar_get(fn, ...)
+  expand.grid(
+    model_longitude = as.vector(v('lon')),
+    model_latitude = as.vector(v('lat')),
+    model_time = ncvar_get_time(fn, 'time'),
+    stringsAsFactors = FALSE
+  ) %>%
+    mutate(
+      sif = as.vector(v('sif')),
+      assim = as.vector(v('assim')),
+      month = month(model_time),
+      # The below equation for local time assumes model_time is in UTC
+      local_hour = hour(model_time + hours(round(model_longitude / 15)))
+    ) %>%
+    filter(between(local_hour, 12, 15))
+}, mc.cores = get_cores())) %>% as_tibble()
+```
+
+# Compare matches by month
+```{r}
+control %>%
+  ggplot(aes(x = value_control, y = value_oco2)) +
+  geom_hex() +
+  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
+  scale_fill_continuous_sequential(
+    palette = 'Viridis',
+    name = 'Count'
+  ) +
+  lims(x = c(0, 1.5), y = c(-0.5, 3.5)) +
+  labs(x = 'Control SIF', y = 'OCO-2 SIF') +
+  facet_wrap(~month, ncol = 4)
+```
+
+# Compare observations to inventory relationships for a sample of pixel-month cases
+```{r}
+n_samples <- 30
+control_nested <- control %>%
+  nest(.by = c('model_longitude', 'model_latitude', 'month')) %>%
+  sample_n(n_samples) %>%
+  rename(match_data = data) %>%
+  left_join(
+    inventory %>%
+      nest(.by = c('model_longitude', 'model_latitude', 'month')) %>%
+      rename(full_inventory = data),
+    by = c('model_longitude', 'model_latitude', 'month')
+  )
+
+plot_scatter_location <- function(nested_data, i) {
+  row <- nested_data[i, ]
+  match_data <- row %>%
+    select(match_data) %>%
+    unnest(cols = c(match_data))
+  full_inventory <- row %>%
+    select(full_inventory) %>%
+    unnest(cols = c(full_inventory))
+
+  stopifnot(length(unique(match_data$intercept)) == 1)
+  stopifnot(length(unique(match_data$slope)) == 1)
+  intercept <- match_data$intercept[1]
+  slope <- match_data$slope[1]
+
+  p_location <- ggplot() +
+    geom_sf(data = coastlines, fill = NA, colour = '#888888', linewidth = 0.05) +
+    geom_point(
+      data = row,
+      aes(x = model_longitude, y = model_latitude),
+      color = 'red',
+      size = 3
+    ) +
+    labs(x = element_blank(), y = element_blank(), title = paste0('Month: ', row$month))
+
+  specs <- paste0(
+    'Intercept: ',
+    round(intercept, 2),
+    ', Slope: ',
+    formatC(slope, format = 'e', digits = 1)
+  )
+  p_data <- ggplot() +
+    geom_hline(
+      data = match_data,
+      aes(yintercept = value_oco2, color = is_outlier),
+      alpha = 0.4
+    ) +
+    geom_point(
+      data = full_inventory,
+      aes(x = assim, y = sif, shape = 'Full Inventory'),
+      color = 'grey',
+      alpha = 0.4,
+    ) +
+    geom_point(
+      data = match_data,
+      aes(x = model_assim, y = value_control, shape = 'Matched Control')
+    ) +
+    geom_abline(
+      aes(intercept = intercept, slope = slope),
+      color = 'blue',
+      linetype = 'dashed'
+    ) +
+    scale_shape_manual(
+      'SiB4',
+      values = c('Full Inventory' = 1, 'Matched Control' = 16),
+      guide = guide_legend(
+        order = 1,
+        keywidth = 0.6,
+        keyheight = 0.2,
+        default.unit = 'cm'
+      )
+    ) +
+    scale_color_manual(
+      'OCO-2',
+      values = c('FALSE' = 'lightskyblue', 'TRUE' = 'orange'),
+      labels = c('FALSE' = 'Non-outlier', 'TRUE' = 'Outlier'),
+      guide = guide_legend(
+        order = 2,
+        keywidth = 0.6,
+        keyheight = 0.2,
+        default.unit = 'cm'
+      )
+    ) +
+    expand_limits(x = 0, y = 0) +
+    labs(x = 'GPP', y = 'SIF', title = specs) +
+    theme(
+      legend.position = 'bottom',
+      legend.box = 'vertical'
+    )
+
+  p_data + p_location
+}
+
+for (i in seq_len(nrow(control_nested))) {
+  p <- plot_scatter_location(control_nested, i)
+  print(p)
+}
+```
+
+# Analyse outliers
+```{r}
+print('Counts of non-outliers and outliers in usable OCO-2 SIF observations:')
+table(control_sif$is_outlier) %>% print()
+
+control %>%
+  filter(is_outlier) %>%
+  ggplot(data = .) +
+  geom_sf(data = coastlines, fill = NA, colour = '#888888', linewidth = 0.05) +
+  geom_point(
+    aes(x = model_longitude, y = model_latitude),
+    color = 'orange',
+    shape = 1,
+    size = 0.25,
+    alpha = 0.25
+  ) +
+  facet_wrap(~month, ncol = 3) +
+  labs(
+    title = 'Outliers locations in usable OCO-2 SIF observations',
+    x = element_blank(),
+    y = element_blank()
+  )
+```
