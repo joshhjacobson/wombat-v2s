@@ -64,11 +64,11 @@ In addition to those data sets already provided, the following data are needed t
   - 10-second averages of the OCO-2 B10 retrievals, in a file named `OCO2_b10c_10sec_GOOD_r5.nc4`.
   - The ObsPack measurements used by the v10 MIP, `obspack_co2_1_OCO2MIP_v3.2_2021-05-20`. These should be untarred into the `data` directory.
   - The TCCON retrievals in the file `downloaded_20211217.tgz`. These were not actually used in the paper, but are required for the matching step to work.
+  - Fossil-fuel emissions based on ODIAC postprocessed for ingestion by HEMCO. The monthly files for 2014 to 2021 should be untarred into the `data/fossil-mipv10` directory.
 - The Landschutzer ocean fluxes in the file `spco2_MPI-SOM_FFN_v2020.nc`, available from this [NOAA website](https://www.ncei.noaa.gov/data/oceans/ncei/ocads/data/0160558/MPI_SOM-FFN_v2020/).
-- Four additional data sets are needed that are not publicly available at this time. These can be provided upon request, and we will endeavour to make them freely available. These are:
-  - GFED4.1s fire emissions, preprocessed for ingestion by HEMCO;
+- Three additional data sets are needed that are not publicly available at this time. These can be provided upon request, and we will endeavour to make them freely available. These are:
   - The SiB4 bottom-up estimates of SIF, and of GPP and respiration fluxes;
-  - Fossil-fuel emissions based on ODIAC postprocessed for ingestion by HEMCO;
+  - GFED4.1s fire emissions, preprocessed for ingestion by HEMCO;
   - Data for the Lauder CO<sub>2</sub> collection site in NZ (not used in the project, but required for the matching step).
 
 GEOS-Chem requires meteorological fields and CO<sub>2</sub> emissions to run. These go into the `data/GEOS_Chem` directory (if you already have some of these, you could symlink them in). There are instructions for how to download these files in the [GEOS-Chem User's Guide](https://geoschem.github.io/gcclassic-manpage-archive/man.GC_12/chapter_4.html).
@@ -81,18 +81,6 @@ ExtData/CHEM_INPUTS/MODIS_LAI_201204
 ExtData/CHEM_INPUTS/Olson_Land_Map_201203
 ExtData/HEMCO/CO2/v2015-04/BIOFUEL
 ```
-
-## Intermediate files to reproduce just the inversion
-
-The most computationally expensive parts of the workflow are Steps 1 and 2 below, where the basis-function runs are computed and post-processed. To ease reproduction of the inversion results, we can provide the necessarily post-processed outputs of Steps 1 and 2 needed to incorporate SIF, run the inversions, and generate the results (Steps 3 to 5 below). These can be provided upon request.
-
-Once you have the archive, extract the files into the root directory of this repository with
-
-```
-tar xzf ~/path/to/wombat-v2s-intermediates.tar.gz
-```
-
-Then you can run the workflow from Step 3 onwards as described below.
 
 ## Data required for OSSE and flux comparisons
 
@@ -108,6 +96,18 @@ mkdir data/FLUXCOM_XBase
 ```
 
 This will place yearly files (2015-2020) for GPP and NEE estimates aggregated to a 0.5-degree monthly resolution into the `data/FLUXCOM_XBase` directory. More details are available at https://gitlab.gwdg.de/fluxcom/fluxcomxdata. Alternatively, the individual files can be obtained from the [ICOS website](https://doi.org/10.18160/5NZG-JMJE).
+
+## Intermediate files to reproduce just the inversion
+
+The most computationally expensive parts of the workflow are Steps 1 and 2 below, where the basis-function runs are computed and post-processed. To ease reproduction of the inversion results, we can provide the necessarily post-processed outputs of Steps 1 to 3 needed to run the inversions and generate the results (Steps 4 and 5 below). These can be provided upon request.
+
+Once you have the archive, extract the files into the root directory of this repository with
+
+```
+tar xzf ~/path/to/wombat-v2s-intermediates.tar.gz
+```
+
+Then you can run the workflow from Step 4 onwards as described below.
 
 # Running the workflow
 
@@ -187,4 +187,4 @@ Once Steps 1-3 are completed (or you've downloaded the intermediate files mentio
 WOMBAT_LOG_LEVEL=debug OMP_NUM_THREADS=8 make -j4 5_results_targets
 ```
 
-After working through some setup steps, this will run the OSSE and real-data inversions and then generate all the plots and outputs. You can modify the `-j` option and the `OMP_NUM_THREADS` variable to suit your local system.
+After working through some setup steps, this will run the OSSE and real-data inversions and then generate all the plots and outputs. The `-j` option specifies the number of targets to build in parallel, and the `OMP_NUM_THREADS` variable allocates the number of threads available for computations. You can modify these to suit your local system.
