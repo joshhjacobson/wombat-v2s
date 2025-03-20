@@ -1,6 +1,6 @@
 # WOMBAT v2.S: A Bayesian inversion framework for attributing global CO<sub>2</sub> flux components from multiprocess data
 
-This repository contains code to reproduce the results in the paper [WOMBAT v2.S: A Bayesian inversion framework for attributing global CO<sub>2</sub> flux components from multiprocess data](). This README assumes familiarity with the paper. Unless stated otherwise, all commands are to be run in the root directory of the repository.
+This repository contains code to reproduce the results in the paper [WOMBAT v2.S: A Bayesian inversion framework for attributing global CO<sub>2</sub> flux components from multiprocess data](https://arxiv.org/abs/2503.09065). This README assumes familiarity with the paper. Unless stated otherwise, all commands are to be run in the root directory of the repository.
 
 <p align="center">
   <img src="osse-flux-decomposition-main.png" alt="OSSE flux decomposition (Negative shift case)" width="80%"/>
@@ -21,10 +21,10 @@ conda config --env --add channels conda-forge
 conda config --env --set channel_priority strict
 ```
 
-Install conda packages
+Install conda packages:
 
 ```
-conda install r-base pkg-config udunits2 libgdal netcdf4 cdo nco
+conda install r-base pkg-config udunits2 gdal libgdal netcdf4 cdo nco
 ```
 
 Set your CRAN mirror. WOMBAT was made in Australia, so we choose the mirror run by CSIRO, but you can pick your favourite:
@@ -97,9 +97,9 @@ mkdir data/FLUXCOM_XBase
 
 This will place yearly files (2015-2020) for GPP and NEE estimates aggregated to a 0.5-degree monthly resolution into the `data/FLUXCOM_XBase` directory. More details are available at https://gitlab.gwdg.de/fluxcom/fluxcomxdata. Alternatively, the individual files can be obtained from the [ICOS website](https://doi.org/10.18160/5NZG-JMJE).
 
-## Intermediate files to reproduce just the inversion
+## Intermediate files to reproduce just the inversions
 
-The most computationally expensive parts of the workflow are Steps 1 and 2 below, where the basis-function runs are computed and post-processed. To ease reproduction of the inversion results, we can provide the necessarily post-processed outputs of Steps 1 to 3 needed to run the inversions and generate the results (Steps 4 and 5 below). These can be provided upon request.
+The most computationally expensive parts of the workflow are Steps 1 and 2 below, where the basis-function runs are computed and postprocessed. To ease reproduction of the inversion results, we can provide the necessarily postprocessed outputs of Steps 1 to 3 needed to run the inversions and generate the results (Steps 4 and 5 below). These can be provided upon request.
 
 Once you have the archive, extract the files into the root directory of this repository with
 
@@ -115,7 +115,7 @@ The workflow of this repository is split into five steps:
 
 1. `1_transport`: Creates GEOS-Chem basis function runs. This includes setting up the inventories, creating the run directories, and setting up the configuration files. You will then need to find a way to run GEOS-Chem for each run.
 2. `2_matching`: Postprocesses the run output from the previous step by extracting the modelled mole-fraction values for each basis function at each observation time and location.
-3. `3_sif`: Prepares SIF data for use in the inversions. This includes computing the 10-second observation averages, setting up the SIF inventory, fitting the SIF–GPP linear models, and extracting the SIF values for each GPP basis function at each observation time and location.
+3. `3_sif`: Prepares SIF data for use in the inversions. This includes computing the 10-second observation averages, setting up the SIF inventory, fitting the SIF–GPP linear models, and extracting the modelled SIF values for each GPP basis function at each SIF observation time and location.
 4. `4_inversion`: Performs the inversions.
 5. `5_results`: Summarises the results as a series of plots, tables, and other outputs. This reproduces all the figures in the paper.
 
@@ -150,7 +150,7 @@ After this is completed, you should run the `postprocess-run.sh` script in the s
 (cd 1_transport/intermediates/runs/residual_20210301_part003 && bash postprocess-run.sh)
 ```
 
-It may however be easier to run these through a batch system like Slurm. Example scripts to do this are provided for the [Gadi supercomputer system run by the Australian NCI](https://nci.org.au/) in `run-gadi.sh`, and for a local Slurm setup in `run-niasra-hpc-sbatch.sh`. All the runs are independent from each other so they can be done in parallel.
+It may however be easier to run these through a batch system like Slurm. Example scripts to do this are provided for the [Gadi supercomputer system run by the Australian NCI](https://nci.org.au/) in `run-gadi.sh`, and for a local Slurm setup in `run-niasra-hpc-sbatch.sh`. All the runs are independent of each other so they can be done in parallel.
 
 ### A note on the transport runs
 
@@ -170,7 +170,7 @@ WOMBAT_LOG_LEVEL=debug make -j4 2_matching_targets
 
 This will create a directory structure in `2_matching/intermediates/runs` and `2_matching/intermediates/runs-r10-r15-rNZ`, which parallels the structure in `1_transport` from the previous step.
 
-Once that's done, there are two steps to run for each directory. The first step aggregates the basis-function fluxes to a monthly resolution. Scripts for running that on the Gadi supercomputer are in `2_matching/intermediates/runs/<RUN>/run-aggregate-flux-gadi.sh`; the script just uses [CDO](https://code.mpimet.mpg.de/projects/cdo/embedded/index.html) and can be adapted to your needs. The second step extracts those portions of the mole fraction outputs of GEOS-Chem that correspond to observations. Scripts for running that on the Gadi supercomputer are in `2_matching/intermediates/runs/<RUN>/run-matching-gadi.sh`. This calls the R script `2_matching/src/match.R` and can again be adapted to your needs.
+Once that's done, there are two steps to run for each directory. The first step aggregates the basis-function fluxes to a monthly resolution. Scripts for running that on the Gadi supercomputer are in `2_matching/src/templates/run-aggregate-flux-gadi.sh`; the script just uses [CDO](https://code.mpimet.mpg.de/projects/cdo/embedded/index.html) and can be adapted to your needs. The second step extracts those portions of the mole fraction outputs of GEOS-Chem that correspond to observations. Scripts for running that on the Gadi supercomputer are in `2_matching/src/templates/run-matching-gadi.sh`. This calls the R script `2_matching/src/match.R` and can again be adapted to your needs.
 
 ## Step 3: incorporating SIF data
 
@@ -179,7 +179,7 @@ Configuration for SIF depends on the transport runs in Step 1, but it can be don
 WOMBAT_LOG_LEVEL=debug OMP_NUM_THREADS=8 make -j4 3_sif_targets
 ```
 
-## Steps 4 and 5: inversion and results
+## Steps 4 and 5: inversions and results
 
 Once Steps 1-3 are completed (or you've downloaded the intermediate files mentioned earlier), you can run the inversions. The simplest way to do this is to run
 
