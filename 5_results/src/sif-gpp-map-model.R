@@ -24,7 +24,7 @@ term_key <- list(
   slope = list(
     name = 'slope',
     scale_factor = 1e-6,
-    legend_title = expression('Slope [(mW'~m^{-2}~µm^{-1}~sr^{-1}*') / (kgCO'[2]~m^{-2}~s^{-1}*')]'),
+    legend_title = expression('Slope [(MW'~m^{-2}~µm^{-1}~sr^{-1}*') / (kgCO'[2]~m^{-2}~s^{-1}*')]'),
     palette = 'imola',
     breaks = seq(0, 4, by = 0.5),
     limits = c(0, 4),

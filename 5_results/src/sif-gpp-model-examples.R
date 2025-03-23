@@ -150,6 +150,7 @@ plot_scatter_location <- function(nested_data, i) {
         'FALSE' = 'OCO-2 SIF (assimilated)',
         'TRUE' = 'OCO-2 SIF (not assimilated)'
       ),
+      guide = guide_legend(override.aes = list(alpha = 1))
     ) +
     expand_limits(x = 0, y = 0) +
     labs(
