@@ -45,7 +45,7 @@ plot_traces <- function(x, names, title_shift) {
         size = 3,
         mapping = aes(label = name),
         direction = 'x',
-        seed = 1
+        seed = 3
       )
     } else {
       geom_label(
