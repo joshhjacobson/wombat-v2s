@@ -57,6 +57,7 @@ XBASE_MONTHLY_2x25_ZONAL = $(5_RESULTS_INTERMEDIATES_DIR)/xbase-monthly-2x25-zon
 	$(5_RESULTS_FIGURES_DIR)/flux-net-zonal.pdf \
 	$(5_RESULTS_FIGURES_DIR)/seasonal-cycle-zonal.pdf \
 	$(5_RESULTS_FIGURES_DIR)/seasonal-latitude-profile.pdf \
+	$(5_RESULTS_FIGURES_DIR)/seasonal-latitude-profile-jja.pdf \
 	$(5_RESULTS_FIGURES_DIR)/average-maps-main-gpp.pdf \
 	$(5_RESULTS_FIGURES_DIR)/average-maps-supp-gpp.pdf \
 	$(5_RESULTS_FIGURES_DIR)/average-maps-resp.pdf \
@@ -343,6 +344,20 @@ $(5_RESULTS_FIGURES_DIR)/seasonal-cycle-zonal.pdf: \
 
 $(5_RESULTS_FIGURES_DIR)/seasonal-latitude-profile.pdf: \
 	$(5_RESULTS_SRC_DIR)/seasonal-latitude-profile.R \
+	$(PERTURBATIONS_AUGMENTED) \
+	$(SAMPLES_WOMBAT_V2) \
+	$(SAMPLES_LNLGISSIF) \
+	$(XBASE_MONTHLY_2x25) \
+	$(DISPLAY_PARTIAL)
+	Rscript $< \
+		--perturbations-augmented $(PERTURBATIONS_AUGMENTED) \
+		--samples-LNLGIS $(SAMPLES_WOMBAT_V2) \
+		--samples-LNLGISSIF $(SAMPLES_LNLGISSIF) \
+		--xbase-monthly-2x25 $(XBASE_MONTHLY_2x25) \
+		--output $@
+
+$(5_RESULTS_FIGURES_DIR)/seasonal-latitude-profile-jja.pdf: \
+	$(5_RESULTS_SRC_DIR)/seasonal-latitude-profile-jja.R \
 	$(PERTURBATIONS_AUGMENTED) \
 	$(SAMPLES_WOMBAT_V2) \
 	$(SAMPLES_LNLGISSIF) \
